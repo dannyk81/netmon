@@ -130,11 +130,14 @@ int main()
         struct nlmsghdr *h;
 
         for (h = (struct nlmsghdr*)buf; status >= (ssize_t)sizeof(*h); ) {   // read all messagess headers
-            int len = h->nlmsg_len;
             unsigned r = createMask(0,21);
-            unsigned pid = r & h->nlmsg_pid;
-            int l = len - sizeof(*h);
+            unsigned pid = 0;
+            if (h->nlmsg_pid != 0) {
+            	pid = r & h->nlmsg_pid;
+            }
 
+            int len = h->nlmsg_len;
+            int l = len - sizeof(*h);
             if ((l < 0) || (len > status)) {
                 LOGERROR("Invalid message length: %i", len);
                 continue;
