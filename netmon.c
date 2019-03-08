@@ -79,6 +79,7 @@ int main()
 
     struct sockaddr_nl  local;  // local addr struct
     char buf[8192];             // message buffer
+    char ifnamebuf[IF_NAMESIZE];
     struct iovec iov;           // message structure
     iov.iov_base = buf;         // set message buffer as io
     iov.iov_len = sizeof(buf);  // set size
@@ -211,11 +212,14 @@ int main()
 					    RTA_DATA(tb[RTA_GATEWAY]),
 					    abuf, sizeof(abuf)));
 		}
-		if (tb[RTA_OIF])
-			LOGINFO("└------> oif: %s", ll_index_to_name(*(int*)RTA_DATA(tb[RTA_OIF])));
+		if (tb[RTA_OIF]) {
+			const char *ifname = if_indextoname(*(int*)RTA_DATA(tb[RTA_OIF]), ifnamebuf);
+			LOGINFO("└------> oif: %s (%s)", ll_index_to_name(*(int*)RTA_DATA(tb[RTA_OIF])), ifname);
+		}
 
 		if (tb[RTA_IIF]) {
-			LOGINFO("└------> iif %s", ll_index_to_name(*(int*)RTA_DATA(tb[RTA_IIF])));
+			const char *ifname = if_indextoname(*(int*)RTA_DATA(tb[RTA_IIF]), ifnamebuf);
+			LOGINFO("└------> iif: %s (%s)", ll_index_to_name(*(int*)RTA_DATA(tb[RTA_IIF])), ifname);
 		}
 
             } else {    // in other case we need to go deeper
