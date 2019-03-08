@@ -130,7 +130,7 @@ int main()
 
         for (h = (struct nlmsghdr*)buf; status >= (ssize_t)sizeof(*h); ) {   // read all messagess headers
             int len = h->nlmsg_len;
-            unsigned r = createMask(0,21);
+            unsigned r = createMask(1,22);
             unsigned pid = r & h->nlmsg_pid;
             int l = len - sizeof(*h);
 
@@ -212,10 +212,10 @@ int main()
 					    abuf, sizeof(abuf)));
 		}
 		if (tb[RTA_OIF])
-			LOGINFO("└------> dev: %s", ll_index_to_name(*(int*)RTA_DATA(tb[RTA_OIF])));
+			LOGINFO("└------> oif: %s", ll_index_to_name(*(int*)RTA_DATA(tb[RTA_OIF])));
 
 		if (tb[RTA_IIF]) {
-			LOGINFO("└------>  iif %s", ll_index_to_name(*(int*)RTA_DATA(tb[RTA_IIF])));
+			LOGINFO("└------> iif %s", ll_index_to_name(*(int*)RTA_DATA(tb[RTA_IIF])));
 		}
 
             } else {    // in other case we need to go deeper
