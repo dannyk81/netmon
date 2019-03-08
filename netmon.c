@@ -131,7 +131,7 @@ int main()
 
         for (h = (struct nlmsghdr*)buf; status >= (ssize_t)sizeof(*h); ) {   // read all messagess headers
             int len = h->nlmsg_len;
-            unsigned r = createMask(1,22);
+            unsigned r = createMask(0,21);
             unsigned pid = r & h->nlmsg_pid;
             int l = len - sizeof(*h);
 
