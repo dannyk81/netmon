@@ -7,6 +7,14 @@
 #include <sys/socket.h>
 #include <linux/rtnetlink.h>
 #include "common.h"
+#include "ip_common.h"
+#include "utils.h"
+#include "utils.c"
+#include "dnet_ntop.c"
+#include "dnet_pton.c"
+#include "ipx_ntop.c"
+#include "ll_map.c"
+#include "libnetlink.c"
 
 // little helper to parsing message using netlink macroses
 void parseRtattr(struct rtattr *tb[], int max, struct rtattr *rta, int len)
@@ -28,6 +36,20 @@ unsigned createMask(unsigned a, unsigned b)
        r |= 1 << i;
 
    return r;
+}
+
+int calc_host_len(struct rtmsg *r)
+{
+	if (r->rtm_family == AF_INET6)
+		return 128;
+	else if (r->rtm_family == AF_INET)
+		return 32;
+	else if (r->rtm_family == AF_DECnet)
+		return 16;
+	else if (r->rtm_family == AF_IPX)
+		return 80;
+	else
+		return -1;
 }
 
 // Returns the local date/time formatted as 2014-03-19 11:11:52
@@ -111,7 +133,6 @@ int main()
             unsigned r = createMask(0,21);
             unsigned pid = r & h->nlmsg_pid;
             int l = len - sizeof(*h);
-            char *ifName;
 
             if ((l < 0) || (len > status)) {
                 LOGERROR("Invalid message length: %i", len);
@@ -120,25 +141,91 @@ int main()
 
             // now we can check message type
             if ((h->nlmsg_type == RTM_NEWROUTE) || (h->nlmsg_type == RTM_DELROUTE)) { // some changes in routing table
+                struct rtmsg *r = NLMSG_DATA(h);
+                struct rtattr *tb[RTA_MAX + 1];
+                char abuf[256];
+	        int host_len = -1;
+	        __u32 table;
+
                 LOGINFO("Routing table was changed");  
+
+                host_len = calc_host_len(r);
+
+                parseRtattr(tb, RTA_MAX, RTM_RTA(r), len);
+                table = rtm_get_table(r, tb);
+
                 switch (h->nlmsg_type) { // what is actually happenned?
                     case RTM_NEWROUTE:
-                        LOGINFO("New route added by PID=%u", pid);
+                        LOGINFO("└---> Route added by PID=%u", pid);
                         break;
 
                     case RTM_DELROUTE:
-                        LOGINFO("Route deleted by PID=%u", pid);
+                        LOGINFO("└---> Route deleted by PID=%u", pid);
                         break;
                 }
+
+		if (tb[RTA_DST]) {
+			if (r->rtm_dst_len != host_len) {
+				LOGINFO("└------> Destination: %s/%u", rt_addr_n2a(r->rtm_family,
+								 RTA_PAYLOAD(tb[RTA_DST]),
+								 RTA_DATA(tb[RTA_DST]),
+								 abuf, sizeof(abuf)),
+					r->rtm_dst_len
+					);
+			} else {
+				LOGINFO("└------> Destination: %s", format_host(r->rtm_family,
+							       RTA_PAYLOAD(tb[RTA_DST]),
+							       RTA_DATA(tb[RTA_DST]),
+							       abuf, sizeof(abuf))
+					);
+			}
+		} else if (r->rtm_dst_len) {
+			LOGINFO("└------> Destination: 0/%d", r->rtm_dst_len);
+		} else {
+			LOGINFO("└------> Destination: default ");
+		}
+
+		if (tb[RTA_SRC]) {
+			if (r->rtm_src_len != host_len) {
+				LOGINFO("└------> Source: %s/%u", rt_addr_n2a(r->rtm_family,
+								 RTA_PAYLOAD(tb[RTA_SRC]),
+								 RTA_DATA(tb[RTA_SRC]),
+								 abuf, sizeof(abuf)),
+					r->rtm_src_len
+					);
+			} else {
+				LOGINFO("└------> Source: %s", format_host(r->rtm_family,
+							       RTA_PAYLOAD(tb[RTA_SRC]),
+							       RTA_DATA(tb[RTA_SRC]),
+							       abuf, sizeof(abuf))
+					);
+			}
+		} else if (r->rtm_src_len) {
+			LOGINFO("└------> Source: 0/%u", r->rtm_src_len);
+		}
+
+		if (tb[RTA_GATEWAY]) {
+			LOGINFO("└------> via: %s",
+				format_host(r->rtm_family,
+					    RTA_PAYLOAD(tb[RTA_GATEWAY]),
+					    RTA_DATA(tb[RTA_GATEWAY]),
+					    abuf, sizeof(abuf)));
+		}
+		if (tb[RTA_OIF])
+			LOGINFO("└------> dev: %s", ll_index_to_name(*(int*)RTA_DATA(tb[RTA_OIF])));
+
+		if (tb[RTA_IIF]) {
+			LOGINFO("└------>  iif %s", ll_index_to_name(*(int*)RTA_DATA(tb[RTA_IIF])));
+		}
+
             } else {    // in other case we need to go deeper
                 char *ifUpp;
                 char *ifRunn;
-                struct ifinfomsg *ifi;  // structure for network interface info
+                char *ifName;
+                struct ifinfomsg *ifi = NLMSG_DATA(h);  // structure for network interface info
                 struct rtattr *tb[IFLA_MAX + 1];
 
-                ifi = (struct ifinfomsg*) NLMSG_DATA(h);    // get information about changed network interface
-
-                parseRtattr(tb, IFLA_MAX, IFLA_RTA(ifi), h->nlmsg_len);  // get attributes
+                parseRtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);  // get attributes
                 
                 if (tb[IFLA_IFNAME]) {  // validation
                     ifName = (char*)RTA_DATA(tb[IFLA_IFNAME]); // get network interface name
