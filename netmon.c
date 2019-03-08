@@ -51,7 +51,7 @@ int main()
     int fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);   // create netlink socket
 
     if (fd < 0) {
-        LOGINFO("Failed to create netlink socket: %s", (char*)strerror(errno));
+        LOGERROR("Failed to create netlink socket: %s", (char*)strerror(errno));
         return 1;
     }
 
@@ -77,7 +77,7 @@ int main()
     }   
 
     if (bind(fd, (struct sockaddr*)&local, sizeof(local)) < 0) {     // bind socket
-        LOGINFO("Failed to bind netlink socket: %s", (char*)strerror(errno));
+        LOGERROR("Failed to bind netlink socket: %s", (char*)strerror(errno));
         close(fd);
         return 1;
     }   
@@ -94,12 +94,12 @@ int main()
                 continue;
             }
 
-            LOGINFO("Failed to read netlink: %s", (char*)strerror(errno));
+            LOGERROR("Failed to read netlink: %s", (char*)strerror(errno));
             continue;
         }
 
         if (msg.msg_namelen != sizeof(local)) { // check message length, just in case
-            LOGINFO("Invalid length of the sender address struct");
+            LOGERROR("Invalid length of the sender address struct");
             continue;
         }
 
@@ -114,7 +114,7 @@ int main()
             char *ifName;
 
             if ((l < 0) || (len > status)) {
-                LOGINFO("Invalid message length: %i", len);
+                LOGERROR("Invalid message length: %i", len);
                 continue;
             }
 
