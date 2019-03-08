@@ -160,11 +160,11 @@ int main()
 
                 switch (h->nlmsg_type) { // what is actually happenned?
                     case RTM_NEWROUTE:
-                        LOGINFO("└---> Route added by PID=%u", pid);
+                        LOGINFO("└---> Route added by PID=%u (raw pid=%u)", pid, h->nlmsg_pid);
                         break;
 
                     case RTM_DELROUTE:
-                        LOGINFO("└---> Route deleted by PID=%u", pid);
+                        LOGINFO("└---> Route deleted by PID=%u (raw pid=%u)", pid, h->nlmsg_pid);
                         break;
                 }
 
